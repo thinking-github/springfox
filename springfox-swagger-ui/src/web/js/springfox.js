@@ -25,9 +25,14 @@ window.onload = () => {
             },
           });
       const configSecurity = await configSecurityResponse.json();
-
+      // support path filter
+      var search  = window.location.search;
+      if(!search){
+        search = "";
+      }
+      //console.info(search);
       const resourcesResponse = await fetch(
-          baseUrl + "/swagger-resources",
+          baseUrl + "/swagger-resources" + search,
           {
             credentials: 'same-origin',
             headers: {
