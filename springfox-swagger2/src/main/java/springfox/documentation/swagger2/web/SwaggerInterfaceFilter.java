@@ -3,8 +3,10 @@ package springfox.documentation.swagger2.web;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import springfox.documentation.swagger.web.UiConfiguration;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -12,6 +14,7 @@ import javax.servlet.annotation.WebFilter;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.lang.reflect.Field;
 
 /**
  * SwaggerInterfaceFilter path filter （Controller Method URL）
@@ -24,31 +27,41 @@ import java.io.IOException;
 @WebFilter(filterName = "swaggerInterfaceFilter", urlPatterns = {"/**"})
 public class SwaggerInterfaceFilter extends OncePerRequestFilter {
 
+    public final static String API_DOCS = "api-docs";
     public final static String API_DOCS_1 = "api-docs=1";
     public final static String API_DOCS_TRUE = "api-docs=true";
-    public final static String DMED = "defaultModelsExpandDepth=-1";
+
+    public final static boolean HAS_DEFAULT_MODELS_EXPAND_DEPTH;
 
 
     private static final Logger logger = LoggerFactory.getLogger(SwaggerInterfaceFilter.class);
 
+    static {
+        Field field = ReflectionUtils.findField(UiConfiguration.class, "defaultModelsExpandDepth");
+        HAS_DEFAULT_MODELS_EXPAND_DEPTH = field == null ? false : true;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String api_docs = request.getParameter("api-docs");
+        String api_docs = request.getParameter(API_DOCS);
         if (Boolean.valueOf(api_docs) || "1".equals(api_docs)) {
             String baseURL = getBaseURL(request);
             String location = baseURL + "/swagger-ui.html?path=" + request.getRequestURI();
             String query = request.getQueryString();
             if (StringUtils.hasLength(query)) {
                 if (query.contains(API_DOCS_1)) {
-                    query = query.replaceAll(API_DOCS_1, DMED);
+                    query = query.replaceAll(API_DOCS_1, "1=1");
                 } else {
-                    query = query.replaceAll(API_DOCS_TRUE, DMED);
+                    query = query.replaceAll(API_DOCS_TRUE, "1=1");
                 }
                 location = location + "&" + query;
 
                 if (!query.contains("docExpansion")) {
                     location = location + "&docExpansion=list";
+                }
+                if(!query.contains("defaultModelsExpandDepth") && HAS_DEFAULT_MODELS_EXPAND_DEPTH){
+                    location = location + "&defaultModelsExpandDepth=-1";
                 }
             }
             response.sendRedirect(location);

@@ -26,6 +26,14 @@ public class ModelAttributeField {
   private final ResolvedType fieldType;
   private final ResolvedField field;
 
+  /**
+   * The parameter type of the parameter.
+   * <p>
+   * Valid values are {@code path}, {@code query}, {@code body},
+   * {@code header} or {@code form}.
+   */
+  private  String paramType;
+
   public ModelAttributeField(ResolvedType fieldType, ResolvedField field) {
     this.fieldType = fieldType;
     this.field = field;
@@ -37,5 +45,13 @@ public class ModelAttributeField {
 
   public ResolvedField getField() {
     return field;
+  }
+
+  public String getParamType() {
+    return paramType;
+  }
+
+  public void setParamType(String paramType) {
+    this.paramType = paramType;
   }
 }

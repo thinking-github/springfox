@@ -92,7 +92,7 @@ public class Swagger2Controller {
     }
     Swagger swagger = mapper.mapDocumentation(documentation);
     //path filter
-    SwaggerUtils.filter(servletRequest,swagger);
+    SwaggerUtils.filter(servletRequest,swagger,documentation);
 
     UriComponents uriComponents = componentsFrom(servletRequest, swagger.getBasePath());
     swagger.basePath(Strings.isNullOrEmpty(uriComponents.getPath()) ? "/" : uriComponents.getPath());
