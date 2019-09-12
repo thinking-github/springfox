@@ -41,6 +41,7 @@ import springfox.documentation.spi.service.contexts.ParameterContext;
 import springfox.documentation.spring.web.plugins.DocumentationPluginsManager;
 import springfox.documentation.spring.web.readers.parameter.ExpansionContext;
 import springfox.documentation.spring.web.readers.parameter.ModelAttributeParameterExpander;
+import springfox.documentation.spring.web.utils.SwaggerAnnotationUtils;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -84,6 +85,9 @@ public class OperationParameterReader implements OperationBuilderPlugin {
 
     List<ResolvedMethodParameter> methodParameters = context.getParameters();
     List<Parameter> parameters = newArrayList();
+
+    // XXX: 2019-09-12 suport ApiImplicitParam dataTypeClass  thinking
+    methodParameters = SwaggerAnnotationUtils.readApiImplicitParamWithDataTypeClass(context);
 
     for (ResolvedMethodParameter methodParameter : methodParameters) {
       ResolvedType alternate = context.alternateFor(methodParameter.getParameterType());
