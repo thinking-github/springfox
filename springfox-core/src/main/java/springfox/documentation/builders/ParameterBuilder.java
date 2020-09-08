@@ -51,6 +51,7 @@ public class ParameterBuilder {
   private ResolvedType type;
   private ModelReference modelRef;
   private boolean hidden;
+  private Boolean readOnly;
   private String pattern;
   private List<VendorExtension> vendorExtensions = newArrayList();
   private String collectionFormat = null;
@@ -77,6 +78,7 @@ public class ParameterBuilder {
         .required(other.isRequired())
         .type(other.getType().orNull())
         .hidden(other.isHidden())
+        .readOnly(other.isReadOnly())
         .allowEmptyValue(other.isAllowEmptyValue())
         .order(other.getOrder())
         .vendorExtensions(other.getVendorExtentions());
@@ -206,6 +208,17 @@ public class ParameterBuilder {
   }
 
   /**
+   * Updates if the parameter is readOnly
+   *
+   * @param readOnly - flag to indicate if the parameter is readOnly
+   * @return this
+   */
+  public ParameterBuilder readOnly(Boolean readOnly) {
+    this.readOnly = readOnly;
+    return this;
+  }
+
+  /**
    * Updates the parameter extensions
    *
    * @param extensions - parameter extensions
@@ -291,6 +304,7 @@ public class ParameterBuilder {
         paramType,
         paramAccess,
         hidden,
+        readOnly,
         pattern,
         collectionFormat,
         order,

@@ -42,6 +42,7 @@ public class Parameter implements Ordered {
   private final String paramType;
   private final String paramAccess;
   private final Boolean hidden;
+  private final Boolean readOnly;
   private final String pattern;
   private final String collectionFormat;
   private final int order;
@@ -63,6 +64,7 @@ public class Parameter implements Ordered {
       String paramType,
       String paramAccess,
       boolean hidden,
+      Boolean readOnly,
       String pattern,
       String collectionFormat,
       int order,
@@ -82,6 +84,7 @@ public class Parameter implements Ordered {
     this.paramAccess = paramAccess;
     this.name = name;
     this.hidden = hidden;
+    this.readOnly = readOnly;
     this.pattern = pattern;
     this.collectionFormat = collectionFormat;
     this.order = order;
@@ -133,6 +136,11 @@ public class Parameter implements Ordered {
   public Boolean isHidden() {
     return hidden;
   }
+
+  public Boolean isReadOnly() {
+    return readOnly;
+  }
+
 
   public String getPattern() {
     return pattern;

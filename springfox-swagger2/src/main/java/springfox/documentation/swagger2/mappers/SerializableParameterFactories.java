@@ -70,6 +70,7 @@ public class SerializableParameterFactories {
     toReturn.setName(source.getName());
     toReturn.setDescription(source.getDescription());
     toReturn.setAccess(source.getParamAccess());
+    toReturn.setReadOnly(source.isReadOnly());
     toReturn.setPattern(source.getPattern());
     toReturn.setRequired(source.isRequired());
     toReturn.setAllowEmptyValue(source.isAllowEmptyValue());

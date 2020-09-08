@@ -27,6 +27,7 @@ import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import springfox.documentation.builders.ParameterBuilder;
 import springfox.documentation.service.AllowableListValues;
 import springfox.documentation.service.AllowableValues;
@@ -92,7 +93,8 @@ public class SwaggerExpandedParameterBuilder implements ExpandedParameterBuilder
         .allowableValues(allowable)
         .parameterAccess(apiParam.access())
         .hidden(apiParam.hidden())
-        .scalarExample(apiParam.example())
+        .readOnly(apiParam.readOnly() ? true : null)
+        .scalarExample(example(context.getFieldType().getErasedType(),apiParam.example()))
         .complexExamples(examples(apiParam.examples()))
         .order(SWAGGER_PLUGIN_ORDER)
         .build();
@@ -103,14 +105,19 @@ public class SwaggerExpandedParameterBuilder implements ExpandedParameterBuilder
     AllowableValues allowable = allowableValues(
         fromNullable(allowableProperty),
         context.getFieldType().getErasedType());
-
+    // add Property readOnly thinking
+    boolean readOnly = apiModelProperty.accessMode() == ApiModelProperty.AccessMode.READ_ONLY;
+    if(!readOnly){
+      readOnly = apiModelProperty.readOnly();
+    }
     maybeSetParameterName(context, apiModelProperty.name())
         .description(descriptions.resolve(apiModelProperty.value()))
         .required(apiModelProperty.required())
         .allowableValues(allowable)
         .parameterAccess(apiModelProperty.access())
         .hidden(apiModelProperty.hidden())
-        .scalarExample(apiModelProperty.example())
+        .readOnly(readOnly ? true : null)
+        .scalarExample(example(context.getFieldType().getErasedType(),apiModelProperty.example()))
         .order(SWAGGER_PLUGIN_ORDER)
         .build();
   }
@@ -131,6 +138,13 @@ public class SwaggerExpandedParameterBuilder implements ExpandedParameterBuilder
       allowable = ApiModelProperties.allowableValueFromString(optionalAllowable.get());
     }
     return allowable;
+  }
+
+  private Object example(Class<?> fieldType, String example) {
+    if (Number.class.isAssignableFrom(fieldType)) {
+      return StringUtils.isEmpty(example) ? null : example;
+    }
+    return example;
   }
 
   private List<String> getEnumValues(final Class<?> subject) {

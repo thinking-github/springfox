@@ -2,6 +2,13 @@ package springfox.documentation.swagger.util;
 
 import com.google.common.collect.Multimap;
 import io.swagger.models.*;
+import io.swagger.models.parameters.BodyParameter;
+import io.swagger.models.parameters.Parameter;
+import io.swagger.models.properties.Property;
+import io.swagger.models.properties.RefProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.StringUtils;
 import springfox.documentation.service.ApiDescription;
@@ -13,15 +20,38 @@ import javax.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.*;
 
+
 /**
+ * SwaggerExpandedParameterBuilder
+ *
  * @author chenyicheng
  * @version 1.0
  * @since 2019-08-18
  */
 public abstract class SwaggerUtils {
 
+    private static final Logger logger = LoggerFactory.getLogger(SwaggerUtils.class);
+
     public final static String METHOD_ROUTER = "path";
     public final static String METHOD_TAGS = "tags";
+    /**
+     * 创建、修改时隐藏不显示接口参数
+     */
+    public static String UPDATE_IGNORE = "UHidden";
+    /**
+     * 查询时隐藏不显示接口参数
+     */
+    public static String QUERY_IGNORE = "QHidden";
+
+    /**
+     * 请求参数隐藏不显示接口参数
+     */
+    public static String REQUEST_IGNORE = "RequestHidden";
+
+    /**
+     * 创建和修改接口标记
+     */
+    public static String OPERATION_UPDATE = "update";
 
     public static Swagger filter(HttpServletRequest request, Swagger swagger, Documentation documentation) {
         String path = request.getParameter(METHOD_ROUTER);
@@ -53,6 +83,9 @@ public abstract class SwaggerUtils {
         } else if (StringUtils.hasLength(tags)) {
             filterPathByTags(request, swagger, tags);
         }
+
+        // XXX: access value  contains RequestHidden Filter
+        accessPropertyFilter(swagger, documentation);
 
         return swagger;
     }
@@ -146,6 +179,130 @@ public abstract class SwaggerUtils {
         }
         return resources;
     }
+
+    /**
+     * access value  contains RequestHidden Filter
+     *
+     * @param swagger
+     * @param documentation
+     * @ApiOperation(value = "update",extensions=@Extension(properties = @ExtensionProperty(name = "update", value ="1")))
+     */
+    public static void accessPropertyFilter(Swagger swagger, Documentation documentation) {
+        Map<String, Path> paths = swagger.getPaths();
+        if (CollectionUtils.isEmpty(paths)) {
+            return;
+        }
+        for (Path path : paths.values()) {
+            for (Operation operation : path.getOperations()) {
+                Map<String, Object> vendorExtensions = operation.getVendorExtensions();
+                Iterator<Parameter> iterator = operation.getParameters().iterator();
+                while (iterator.hasNext()) {
+                    Parameter parameter = iterator.next();
+                    String access = parameter.getAccess();
+                    if (vendorExtensions != null && vendorExtensions.containsKey(OPERATION_UPDATE)) {
+                        Boolean readOnly = parameter.isReadOnly();
+                        if (readOnly != null && readOnly) {
+                            logger.info(parameter.toString() + " name={},readOnly={},paramAccess={}",
+                                    parameter.getName(),parameter.isReadOnly(),access);
+                            iterator.remove();
+                            continue;
+                        }
+                    }
+
+                    if (StringUtils.isEmpty(access)) {
+                        continue;
+                    }
+                    //remove
+                    if (access.contains(REQUEST_IGNORE)) {
+                        logger.info(parameter.toString() + " name={},readOnly={},paramAccess={}",
+                                parameter.getName(),parameter.isReadOnly(),access);
+                        iterator.remove();
+                        continue;
+                    }
+                }
+                // create entityUpdate model
+                if (vendorExtensions != null && vendorExtensions.containsKey(OPERATION_UPDATE)) {
+                    for (Parameter parameter : operation.getParameters()) {
+                        if (parameter instanceof BodyParameter) {
+                            Model schema = ((BodyParameter) parameter).getSchema();
+                            if (schema instanceof RefModel) {
+                                RefModel refModel = (RefModel) schema;
+                                String simpleName = refModel.getSimpleRef();
+                                String nameUpdate = simpleName + "Update";
+                                boolean modelToUpdate =  modelUpdate(swagger,simpleName,nameUpdate);
+                                if (modelToUpdate) {
+                                    //refModel clone
+                                    RefModel refModelUpdate = new RefModel(nameUpdate);
+                                    refModelUpdate.setDescription(refModel.getDescription());
+                                    refModelUpdate.setProperties(refModel.getProperties());
+                                    refModelUpdate.setExample(refModel.getExample());
+                                    ((BodyParameter) parameter).setSchema(refModelUpdate);
+                                }
+                            } else if (schema instanceof ArrayModel) {
+                                ArrayModel arrayModel = (ArrayModel) schema;
+                                Property property = arrayModel.getItems();
+                                if(property instanceof RefProperty){
+                                    RefProperty refProperty = (RefProperty) property;
+                                    String simpleName = refProperty.getSimpleRef();
+                                    String nameUpdate = simpleName + "Update";
+                                    boolean modelToUpdate =  modelUpdate(swagger,simpleName,nameUpdate);
+                                    if(modelToUpdate){
+                                        refProperty.set$ref(nameUpdate);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
+    /**
+     * 当前实体含有大于等于三个只读属性时,重新生成少量参数的 '写实体'
+     *
+     * @param swagger
+     * @param simpleName
+     * @param nameUpdate
+     * @return
+     */
+    public static boolean modelUpdate(Swagger swagger,String simpleName,String nameUpdate){
+        Model modelEntity = swagger.getDefinitions().get(simpleName);
+        Model modelUpdate = swagger.getDefinitions().get(nameUpdate);
+        int readOnlyCount = 0;
+        List<String> readOnlyList = null;
+        for (Map.Entry<String, Property> propertyEntry : modelEntity.getProperties().entrySet()) {
+            Property property = propertyEntry.getValue();
+            if (property.getReadOnly() != null && property.getReadOnly()) {
+                if (modelUpdate != null) {
+                    readOnlyCount = 3;
+                    break;
+                }
+                readOnlyCount++;
+                if (readOnlyList == null) {
+                    readOnlyList = new ArrayList<String>();
+                }
+                readOnlyList.add(propertyEntry.getKey());
+            }
+        }
+
+        if (readOnlyCount >= 3) {
+            ModelImpl cloneUpdate = (ModelImpl) swagger.getDefinitions().get(nameUpdate);
+            if (cloneUpdate == null) {
+                // model clone
+                cloneUpdate = (ModelImpl) modelEntity.clone();
+                cloneUpdate.setName(nameUpdate);
+                cloneUpdate.setTitle(nameUpdate);
+                for (String name : readOnlyList) {
+                    cloneUpdate.getProperties().remove(name);
+                }
+                swagger.addDefinition(nameUpdate, cloneUpdate);
+            }
+        }
+        return readOnlyCount >= 3;
+    }
+
 
     public static boolean containsTag(Operation operation, String tag) {
         if (operation == null || operation.getTags() == null) {

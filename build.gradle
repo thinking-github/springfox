@@ -33,6 +33,11 @@ ext {
 
 allprojects {
   apply plugin: 'jacoco'
+  repositories {
+    maven {
+      url "https://maven.aliyun.com/nexus/content/groups/public/"
+    }
+  }
 }
 
 subprojects {
