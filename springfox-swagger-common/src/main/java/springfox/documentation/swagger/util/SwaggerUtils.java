@@ -82,7 +82,10 @@ public abstract class SwaggerUtils {
             filterTags(request, swagger);
         } else if (StringUtils.hasLength(tags)) {
             filterPathByTags(request, swagger, tags);
+
+            filterTags(request, swagger);
         }
+
 
         // XXX: access value  contains RequestHidden Filter
         accessPropertyFilter(swagger, documentation);
@@ -105,6 +108,29 @@ public abstract class SwaggerUtils {
             }
         }
     }
+
+
+    /**
+     * filter tags
+     *
+     * @param request
+     * @param swagger
+     * @param tags
+     */
+    public static void filterTags(HttpServletRequest request, Swagger swagger, String tags) {
+        if (StringUtils.hasLength(tags)) {
+            List<Tag> tagList = swagger.getTags();
+            for (Iterator<Tag> it = tagList.iterator(); it.hasNext(); ) {
+                Tag entry = it.next();
+                String[] tagNames = StringUtils.commaDelimitedListToStringArray(tags);
+
+                if (!containsTag(entry, tagNames)) {
+                    it.remove();
+                }
+            }
+        }
+    }
+
 
     public static void filterDefinitions(HttpServletRequest request, Swagger swagger, Documentation documentation) {
         Map<String, Path> pathMap = swagger.getPaths();
@@ -203,7 +229,7 @@ public abstract class SwaggerUtils {
                         Boolean readOnly = parameter.isReadOnly();
                         if (readOnly != null && readOnly) {
                             logger.info(parameter.toString() + " name={},readOnly={},paramAccess={}",
-                                    parameter.getName(),parameter.isReadOnly(),access);
+                                    parameter.getName(), parameter.isReadOnly(), access);
                             iterator.remove();
                             continue;
                         }
@@ -215,7 +241,7 @@ public abstract class SwaggerUtils {
                     //remove
                     if (access.contains(REQUEST_IGNORE)) {
                         logger.info(parameter.toString() + " name={},readOnly={},paramAccess={}",
-                                parameter.getName(),parameter.isReadOnly(),access);
+                                parameter.getName(), parameter.isReadOnly(), access);
                         iterator.remove();
                         continue;
                     }
@@ -229,7 +255,7 @@ public abstract class SwaggerUtils {
                                 RefModel refModel = (RefModel) schema;
                                 String simpleName = refModel.getSimpleRef();
                                 String nameUpdate = simpleName + "Update";
-                                boolean modelToUpdate =  modelUpdate(swagger,simpleName,nameUpdate);
+                                boolean modelToUpdate = modelUpdate(swagger, simpleName, nameUpdate);
                                 if (modelToUpdate) {
                                     //refModel clone
                                     RefModel refModelUpdate = new RefModel(nameUpdate);
@@ -241,12 +267,12 @@ public abstract class SwaggerUtils {
                             } else if (schema instanceof ArrayModel) {
                                 ArrayModel arrayModel = (ArrayModel) schema;
                                 Property property = arrayModel.getItems();
-                                if(property instanceof RefProperty){
+                                if (property instanceof RefProperty) {
                                     RefProperty refProperty = (RefProperty) property;
                                     String simpleName = refProperty.getSimpleRef();
                                     String nameUpdate = simpleName + "Update";
-                                    boolean modelToUpdate =  modelUpdate(swagger,simpleName,nameUpdate);
-                                    if(modelToUpdate){
+                                    boolean modelToUpdate = modelUpdate(swagger, simpleName, nameUpdate);
+                                    if (modelToUpdate) {
                                         refProperty.set$ref(nameUpdate);
                                     }
                                 }
@@ -267,7 +293,7 @@ public abstract class SwaggerUtils {
      * @param nameUpdate
      * @return
      */
-    public static boolean modelUpdate(Swagger swagger,String simpleName,String nameUpdate){
+    public static boolean modelUpdate(Swagger swagger, String simpleName, String nameUpdate) {
         Model modelEntity = swagger.getDefinitions().get(simpleName);
         Model modelUpdate = swagger.getDefinitions().get(nameUpdate);
         int readOnlyCount = 0;
@@ -319,6 +345,18 @@ public abstract class SwaggerUtils {
     public static boolean containsTag(Operation operation, String[] tags) {
         for (String tag : tags) {
             if (containsTag(operation, tag)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static boolean containsTag(Tag tag, String[] tags) {
+        if (tag == null || tag.getName() == null) {
+            return false;
+        }
+        for (String searchTag : tags) {
+            if (searchTag.equals(tag.getName())) {
                 return true;
             }
         }
